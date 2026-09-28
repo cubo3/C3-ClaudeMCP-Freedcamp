@@ -1,0 +1,11 @@
+{
+  "name": "freedcamp",
+  "version": "0.1.0",
+  "description": "Connect Claude to Freedcamp: list projects, view/create/update tasks, read and add comments, and see attached files",
+  "author": {
+    "name": "Cubo3 Ltda.",
+    "email": "contacto@cubo3.cl"
+  },
+  "license": "MIT",
+  "keywords": ["freedcamp", "project management", "tasks"]
+}

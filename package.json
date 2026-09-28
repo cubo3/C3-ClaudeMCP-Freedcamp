@@ -1,0 +1,9 @@
+{
+  "name": "freedcamp-claude-plugin",
+  "version": "0.1.0",
+  "description": "Connect Claude to Freedcamp: list projects, view/create/update tasks, read and add comments, and see attached files",
+  "main": "servers/freedcamp-server.js",
+  "author": "Cubo3 Ltda. <contacto@cubo3.cl>",
+  "license": "MIT",
+  "keywords": ["freedcamp", "mcp", "claude", "project-management"]
+}

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "freedcamp": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/servers/freedcamp-server.js"],
+      "env": {
+        "FREEDCAMP_API_KEY": "${FREEDCAMP_API_KEY}",
+        "FREEDCAMP_API_SECRET": "${FREEDCAMP_API_SECRET}"
+      }
+    }
+  }
+}
