@@ -1,85 +1,94 @@
-# Freedcamp plugin
+# Plugin de Freedcamp
 
-© 2026 [Cubo3 Ltda.](mailto:contacto@cubo3.cl) — licensed under MIT (see
-[`LICENSE`](./LICENSE)).
+© 2026 [Cubo3 Ltda.](mailto:contacto@cubo3.cl) — licenciado bajo MIT (ver
+[`LICENSE`](./LICENSE)). Desarrollado orgullosamente en Chile 🇨🇱.
 
-Connects Claude to your Freedcamp account so it can read and manage
-projects, tasks, comments, and files without leaving the chat.
+Conecta Claude a tu cuenta de Freedcamp para que pueda leer y gestionar
+proyectos, tareas, comentarios y archivos sin salir del chat.
 
-## Components
+## Componentes
 
-- **MCP server** (`freedcamp`) — a small Node script
-  (`servers/freedcamp-server.js`) with **zero external dependencies**
-  (only Node's built-in `https`, `crypto`, `readline`) that talks directly
-  to Freedcamp's REST API (`https://freedcamp.com/api/v1/`) and exposes 8
-  tools: `freedcamp_list_projects`, `freedcamp_list_tasks`,
+- **Servidor MCP** (`freedcamp`) — un pequeño script de Node
+  (`servers/freedcamp-server.js`) **sin dependencias externas** (solo los
+  módulos nativos de Node `https`, `crypto`, `readline`) que habla
+  directamente con la API REST de Freedcamp (`https://freedcamp.com/api/v1/`)
+  y expone 8 herramientas: `freedcamp_list_projects`, `freedcamp_list_tasks`,
   `freedcamp_get_task`, `freedcamp_create_task`, `freedcamp_update_task`,
-  `freedcamp_add_comment`, `freedcamp_list_comments`,
-  `freedcamp_list_files`.
-- **Skill** (`freedcamp`) — tells Claude when and how to use those tools.
+  `freedcamp_add_comment`, `freedcamp_list_comments`, `freedcamp_list_files`.
+- **Skill** (`freedcamp`) — le indica a Claude cuándo y cómo usar esas
+  herramientas.
 
-## Installation
+## Instalación
 
-1. Clone or download this repository.
-2. Rename `mcp.json.template` to `.mcp.json` (in the repo root). This file
-   is not tracked with the leading dot in the repo itself — rename it
-   locally before pointing your Claude client at this plugin.
-3. Follow the environment variable setup below (or the full guide in
-   `CONFIGURACION-CLAVES.md`) before first use.
+1. Clona o descarga este repositorio.
+2. Renombra `mcp.json.template` a `.mcp.json` (en la raíz del repo). Este
+   archivo no se versiona con el punto inicial en el propio repositorio —
+   renómbralo localmente antes de apuntar tu cliente de Claude a este
+   plugin.
+3. Sigue la configuración de variables de entorno más abajo (o la guía
+   completa en `CONFIGURACION-CLAVES.md`) antes de usarlo por primera vez.
 
-## Setup — required environment variables
+## Configuración — variables de entorno requeridas
 
-This plugin needs two values from your own Freedcamp account, and they
-must be set as **environment variables** in the environment that runs the
-MCP server — never pasted into chat, never hardcoded in any file here.
-See `CONFIGURACION-CLAVES.md` for the full step-by-step guide.
+Este plugin necesita dos valores de tu propia cuenta de Freedcamp, y deben
+quedar como **variables de entorno** en el entorno donde corre el servidor
+MCP — nunca pegadas en el chat, nunca escritas directamente en ningún
+archivo de este repo. Ver `CONFIGURACION-CLAVES.md` para la guía completa
+paso a paso.
 
-1. Go to Freedcamp → **My Account → API tab**
-   (`https://freedcamp.com/manage/account#api`). You'll need to re-enter
-   your password to reveal the secret.
-2. Copy your **API key** and **API secret**.
-3. Set them as environment variables named exactly:
+1. Entra a Freedcamp → **My Account → pestaña API**
+   (`https://freedcamp.com/manage/account#api`). Te pedirá reingresar tu
+   contraseña para mostrar el secreto.
+2. Copia tu **API key** y tu **API secret**.
+3. Configúralas como variables de entorno con estos nombres exactos:
    - `FREEDCAMP_API_KEY`
    - `FREEDCAMP_API_SECRET`
 
-   How you set them depends on where this plugin runs (e.g. a `.env` file
-   loaded by your Claude environment, your OS/user environment variables,
-   or your process manager's secret store). If you're not sure how your
-   setup loads environment variables for MCP servers, ask whoever manages
-   that environment — don't put the raw secret in `.mcp.json` or any
-   other plugin file.
-4. **Never share your API secret** — Freedcamp's own docs call this out
-   explicitly. If you suspect it leaked, regenerate it from the same API
-   tab.
+   Cómo las configures depende de dónde corra este plugin (por ejemplo un
+   archivo `.env` cargado por tu entorno de Claude, variables de entorno de
+   tu sistema/usuario, o el almacén de secretos de tu gestor de procesos).
+   Si no estás seguro de cómo tu configuración carga variables de entorno
+   para servidores MCP, consulta a quien administre ese entorno — no
+   pongas el secreto real en `.mcp.json` ni en ningún otro archivo del
+   plugin.
+4. **Nunca compartas tu API secret** — la propia documentación de Freedcamp
+   lo advierte explícitamente. Si sospechas que se filtró, regenéralo desde
+   la misma pestaña API.
 
-If either variable is missing, every tool call will fail with a clear
-error message naming the missing variable — that's expected until step 3
-is done, not a bug in the plugin.
+Si falta cualquiera de las dos variables, cada llamada a una herramienta
+fallará con un mensaje de error claro nombrando la variable faltante — eso
+es esperado hasta completar el paso 3, no es un error del plugin.
 
-## Usage
+## Uso
 
-Just ask naturally, e.g.:
+Simplemente pide de forma natural, por ejemplo:
 
-- "What Freedcamp projects do I have?"
-- "Show me my open tasks in [project]"
-- "Create a task in [project] called ... due next Friday"
-- "Mark task #1234 as done"
-- "Comment on task #1234: ..."
-- "What files are attached to task #1234?"
+- "¿Qué proyectos tengo en Freedcamp?"
+- "Muéstrame mis tareas abiertas en [proyecto]"
+- "Crea una tarea en [proyecto] llamada ... para el próximo viernes"
+- "Marca la tarea #1234 como completada"
+- "Comenta en la tarea #1234: ..."
+- "¿Qué archivos tiene adjuntos la tarea #1234?"
 
-## Known limitations
+## Limitaciones conocidas
 
-- Listing comments/files reuses the "get one task" endpoint (Freedcamp's
-  public API doesn't document a separate list-comments-by-item endpoint)
-  — so `freedcamp_list_comments`/`freedcamp_list_files` only work for
-  tasks, not other item types.
-- File tools return metadata and a temporary (~1 hour) download URL only
-  — they don't download or upload file contents.
-- No delete tools are included (task/comment/file deletion), by design,
-  to keep this a low-risk read-mostly integration. Ask if you want those
-  added later.
+- Listar comentarios/archivos reutiliza el endpoint de "obtener una tarea"
+  (la API pública de Freedcamp no documenta un endpoint separado de
+  listar-comentarios-por-item) — así que `freedcamp_list_comments` y
+  `freedcamp_list_files` solo funcionan para tareas, no para otros tipos de
+  ítem.
+- Las herramientas de archivos devuelven solo metadata y una URL de
+  descarga temporal (~1 hora) — no descargan ni suben contenido de
+  archivos.
+- No se incluyen herramientas de eliminación (borrar tareas, comentarios o
+  archivos), a propósito, para mantener esta integración de bajo riesgo y
+  mayormente de lectura. Avisa si quieres que se agreguen más adelante.
 
-## License
+## Licencia
 
-MIT © 2026 [Cubo3 Ltda.](mailto:contacto@cubo3.cl). See [`LICENSE`](./LICENSE)
-for the full text.
+MIT © 2026 [Cubo3 Ltda.](mailto:contacto@cubo3.cl). Ver [`LICENSE`](./LICENSE)
+para el texto completo.
+
+---
+
+Desarrollado orgullosamente en Chile 🇨🇱 por [Cubo3 Ltda.](mailto:contacto@cubo3.cl)

@@ -1,3 +1,14 @@
 node_modules/
 *.bak
 *.bak.*
+
+# Nunca versionar llaves/credenciales
+*.pem
+*.key
+*.ppk
+id_rsa*
+id_ed25519*
+*Key
+*Key.pub
+.env
+.env.*

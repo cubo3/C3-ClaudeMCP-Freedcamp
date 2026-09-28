@@ -98,4 +98,5 @@ Vuelve a la pestaña API de tu cuenta Freedcamp y regenera el par
 key/secret. El anterior queda invalidado de inmediato.
 
 ---
-© 2026 Cubo3 Ltda. (contacto@cubo3.cl) — MIT License.
+© 2026 Cubo3 Ltda. (contacto@cubo3.cl) — Licencia MIT.
+Desarrollado orgullosamente en Chile 🇨🇱.
