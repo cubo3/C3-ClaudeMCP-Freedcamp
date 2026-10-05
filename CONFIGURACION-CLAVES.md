@@ -1,10 +1,5 @@
 # Cómo configurar tus llaves de Freedcamp
 
-> **Antes de empezar:** este repositorio trae el archivo de configuración
-> del servidor MCP como `mcp.json.template` (sin el punto inicial).
-> Renómbralo a **`.mcp.json`** en la raíz del repo antes de usar el plugin
-> — así lo espera tu cliente de Claude.
-
 Este plugin necesita dos valores de tu propia cuenta de Freedcamp: la **API key**
 y el **API secret**. Nunca van escritos dentro de ningún archivo del plugin
 (y menos aún subidos a un repositorio público) — se entregan como
@@ -20,7 +15,7 @@ y el **API secret**. Nunca van escritos dentro de ningún archivo del plugin
 
 ## 2. Dónde ponerlos
 
-El archivo `.mcp.json` de este plugin ya viene así:
+El archivo `.mcp.json` de este plugin (ya incluido en el repositorio, sin secretos) es así:
 
 ```json
 {

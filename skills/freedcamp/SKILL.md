@@ -19,7 +19,10 @@ y escribir datos de Freedcamp. No adivines los ids — búscalos primero.
 2. Para encontrar una tarea, llama a `freedcamp_list_tasks` con ese
    `project_id` (opcionalmente filtrado por `status` o `assigned_to_id`) y
    coincide por título para obtener el `task_id`.
-3. Para el detalle completo de una tarea (descripción, comentarios,
+3. Para crear una tarea en una lista concreta o asignada a alguien, busca
+   antes el `list_id` con `freedcamp_list_task_lists` y el `assigned_to_id`
+   con `freedcamp_list_assignees`.
+4. Para el detalle completo de una tarea (descripción, comentarios,
    archivos), llama a `freedcamp_get_task`.
 
 ## Herramientas
@@ -42,6 +45,12 @@ y escribir datos de Freedcamp. No adivines los ids — búscalos primero.
   `description`. `app_id` por defecto es "2" (Tareas) — solo cámbialo para
   un ítem que no sea una tarea.
 - `freedcamp_list_comments` — requiere `task_id`.
+- `freedcamp_list_task_lists` — requiere `project_id`. Devuelve las listas
+  de tareas (`list_id`, título, cantidad) para elegir `list_id` al crear una
+  tarea. Se deriva de las tareas existentes: una lista vacía no aparece.
+- `freedcamp_list_assignees` — requiere `project_id`. Devuelve los usuarios
+  con tareas asignadas (`user_id`, nombre) para elegir `assigned_to_id`. Un
+  usuario sin tareas asignadas no aparece.
 - `freedcamp_list_files` — requiere `task_id`. Devuelve metadata de
   archivos y una URL de descarga temporal (expira en ~1 hora) — esto no
   descarga el contenido del archivo.

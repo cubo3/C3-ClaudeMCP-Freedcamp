@@ -1,11 +1,14 @@
 {
   "name": "freedcamp",
-  "version": "0.1.0",
-  "description": "Connect Claude to Freedcamp: list projects, view/create/update tasks, read and add comments, and see attached files",
+  "version": "0.2.0",
+  "description": "Connect Claude to Freedcamp: list projects and tasks, create and update tasks, read and add comments, and see attached files.",
   "author": {
     "name": "Cubo3 Ltda.",
-    "email": "contacto@cubo3.cl"
+    "email": "contacto@cubo3.cl",
+    "url": "https://cubo3.cl"
   },
+  "homepage": "https://github.com/cubo3/C3-ClaudeMCP-Freedcamp",
+  "repository": "https://github.com/cubo3/C3-ClaudeMCP-Freedcamp",
   "license": "MIT",
-  "keywords": ["freedcamp", "project management", "tasks"]
+  "keywords": ["freedcamp", "mcp", "project management", "tasks", "claude"]
 }

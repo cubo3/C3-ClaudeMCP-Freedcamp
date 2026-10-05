@@ -1,9 +1,16 @@
 {
   "name": "freedcamp-claude-plugin",
-  "version": "0.1.0",
-  "description": "Connect Claude to Freedcamp: list projects, view/create/update tasks, read and add comments, and see attached files",
+  "version": "0.2.0",
+  "description": "MCP server and Claude plugin for Freedcamp: list projects and tasks, create and update tasks, read and add comments, see attached files. Zero dependencies.",
   "main": "servers/freedcamp-server.js",
-  "author": "Cubo3 Ltda. <contacto@cubo3.cl>",
+  "bin": { "freedcamp-mcp": "servers/freedcamp-server.js" },
+  "files": ["servers/", "skills/", ".claude-plugin/", ".mcp.json", "README.md", "CONFIGURACION-CLAVES.md", "LICENSE", "CHANGELOG.md"],
+  "scripts": { "test": "node --test" },
+  "engines": { "node": ">=18" },
+  "author": "Cubo3 Ltda. <contacto@cubo3.cl> (https://cubo3.cl)",
   "license": "MIT",
-  "keywords": ["freedcamp", "mcp", "claude", "project-management"]
+  "repository": { "type": "git", "url": "git+https://github.com/cubo3/C3-ClaudeMCP-Freedcamp.git" },
+  "bugs": { "url": "https://github.com/cubo3/C3-ClaudeMCP-Freedcamp/issues" },
+  "homepage": "https://github.com/cubo3/C3-ClaudeMCP-Freedcamp#readme",
+  "keywords": ["mcp", "mcp-server", "model-context-protocol", "claude", "claude-code", "claude-plugin", "freedcamp", "project-management", "tasks", "anthropic"]
 }

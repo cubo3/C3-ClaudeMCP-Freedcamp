@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Copyright (c) 2026 Cubo3 Ltda. <contacto@cubo3.cl>
+// Copyright (c) 2026 Cubo3 Ltda. <contacto@cubo3.cl>  (https://cubo3.cl)
 // Licensed under the MIT License — see the LICENSE file in this repo.
 //
 // MCP stdio server for the Freedcamp REST API (https://freedcamp.com/api/v1/).
@@ -19,6 +19,7 @@
 const https = require('https');
 const crypto = require('crypto');
 const readline = require('readline');
+const PKG = require('../package.json');
 
 const API_KEY = process.env.FREEDCAMP_API_KEY;
 const API_SECRET = process.env.FREEDCAMP_API_SECRET;
@@ -30,7 +31,7 @@ function requireCredentials() {
   if (!API_KEY || !API_SECRET) {
     throw new Error(
       'Faltan FREEDCAMP_API_KEY / FREEDCAMP_API_SECRET en el entorno. ' +
-      'Configuralas donde corras este plugin (ver README.md) — nunca se pasan por el chat.'
+      'Configúralas donde corras este plugin (ver README.md) — nunca se pasan por el chat.'
     );
   }
 }
@@ -45,7 +46,16 @@ function authParams() {
   return { api_key: API_KEY, timestamp, hash };
 }
 
-function freedcampRequest(method, path, { query, body } = {}) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+class HttpError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function requestOnce(method, path, { query, body } = {}) {
   return new Promise((resolve, reject) => {
     let params;
     try {
@@ -65,7 +75,7 @@ function freedcampRequest(method, path, { query, body } = {}) {
     }
     const fullPath = `${BASE_PATH}${path}?${params.toString()}`;
     const payload = body !== undefined ? JSON.stringify(body) : undefined;
-    const headers = { Accept: 'application/json' };
+    const headers = { Accept: 'application/json', 'User-Agent': `freedcamp-claude-plugin/${PKG.version}` };
     if (payload) {
       headers['Content-Type'] = 'application/json';
       headers['Content-Length'] = Buffer.byteLength(payload);
@@ -79,12 +89,16 @@ function freedcampRequest(method, path, { query, body } = {}) {
           raw += chunk;
         });
         res.on('end', () => {
+          const status = res.statusCode;
+          if (status === 429 || status >= 500) {
+            return reject(new HttpError(`Freedcamp respondió HTTP ${status}`, status));
+          }
           let parsed;
           try {
             parsed = JSON.parse(raw);
           } catch (e) {
             return reject(
-              new Error(`Respuesta no-JSON de Freedcamp (HTTP ${res.statusCode}): ${raw.slice(0, 300)}`)
+              new HttpError(`Respuesta no-JSON de Freedcamp (HTTP ${status}): ${raw.slice(0, 300)}`, status)
             );
           }
           if (parsed && parsed.msg && parsed.msg !== 'OK' && parsed.http_code >= 400) {
@@ -92,7 +106,7 @@ function freedcampRequest(method, path, { query, body } = {}) {
               parsed.data && parsed.data.errors
                 ? JSON.stringify(parsed.data.errors)
                 : parsed.msg;
-            return reject(new Error(`Freedcamp API error (HTTP ${parsed.http_code}): ${detail}`));
+            return reject(new HttpError(`Freedcamp API error (HTTP ${parsed.http_code}): ${detail}`, parsed.http_code));
           }
           resolve(parsed);
         });
@@ -105,10 +119,29 @@ function freedcampRequest(method, path, { query, body } = {}) {
   });
 }
 
+// Las lecturas (GET) se reintentan ante 429/5xx/red caída; las escrituras solo ante 429
+// (así un reintento nunca duplica una tarea o un comentario).
+async function freedcampRequest(method, path, opts = {}) {
+  const maxAttempts = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await requestOnce(method, path, opts);
+    } catch (e) {
+      const isGet = method === 'GET';
+      const retryable = e.status === 429 || (isGet && (e.status >= 500 || e.status === undefined) && !/FREEDCAMP_API/.test(e.message));
+      if (!retryable || attempt >= maxAttempts) throw e;
+      await sleep(500 * 2 ** (attempt - 1));
+    }
+  }
+}
+
+// Punto de inyección para pruebas automáticas.
+const api = { request: (...args) => freedcampRequest(...args) };
+
 // ---- Tool implementations -------------------------------------------------
 
 async function listProjects() {
-  const res = await freedcampRequest('GET', '/projects');
+  const res = await api.request('GET', '/projects');
   const projects = (res.data && res.data.projects) || [];
   return projects.map((p) => ({
     project_id: p.project_id,
@@ -128,7 +161,7 @@ async function listTasks({ project_id, status, assigned_to_id, limit, offset } =
     limit: limit || 50,
     offset: offset || 0,
   };
-  const res = await freedcampRequest('GET', '/tasks', { query });
+  const res = await api.request('GET', '/tasks', { query });
   const tasks = (res.data && res.data.tasks) || [];
   const meta = (res.data && res.data.meta) || {};
   return {
@@ -139,6 +172,9 @@ async function listTasks({ project_id, status, assigned_to_id, limit, offset } =
       status: t.status_title,
       priority: t.priority_title,
       assigned_to: t.assigned_to_fullname,
+      assigned_to_id: t.assigned_to_id,
+      list_id: t.list_id,
+      list_title: t.list_title,
       due_ts: t.due_ts,
       comments_count: t.comments_count,
       files_count: t.files_count,
@@ -150,9 +186,9 @@ async function listTasks({ project_id, status, assigned_to_id, limit, offset } =
 
 async function getTask({ task_id }) {
   if (!task_id) throw new Error('task_id es requerido');
-  const res = await freedcampRequest('GET', `/tasks/${encodeURIComponent(task_id)}`);
+  const res = await api.request('GET', `/tasks/${encodeURIComponent(task_id)}`);
   const t = (res.data && res.data.tasks && res.data.tasks[0]) || null;
-  if (!t) throw new Error(`No se encontro la tarea ${task_id}`);
+  if (!t) throw new Error(`No se encontró la tarea ${task_id}`);
   return t;
 }
 
@@ -175,7 +211,7 @@ async function createTask({
   if (assigned_to_id !== undefined) body.assigned_to_id = assigned_to_id;
   if (due_date !== undefined) body.due_date = due_date;
   if (start_date !== undefined) body.start_date = start_date;
-  const res = await freedcampRequest('POST', '/tasks', { body });
+  const res = await api.request('POST', '/tasks', { body });
   return (res.data && res.data.tasks && res.data.tasks[0]) || res.data;
 }
 
@@ -192,7 +228,7 @@ async function updateTask({ task_id, title, description, status, priority, assig
   if (Object.keys(body).length === 0) {
     throw new Error('Pasa al menos un campo para actualizar (title, description, status, priority, assigned_to_id, due_date, list_id)');
   }
-  const res = await freedcampRequest('POST', `/tasks/${encodeURIComponent(task_id)}`, { body });
+  const res = await api.request('POST', `/tasks/${encodeURIComponent(task_id)}`, { body });
   return (res.data && res.data.tasks && res.data.tasks[0]) || res.data;
 }
 
@@ -200,7 +236,7 @@ async function addComment({ item_id, description, app_id }) {
   if (!item_id) throw new Error('item_id es requerido (id de la tarea u otro item)');
   if (!description) throw new Error('description es requerido');
   const body = { item_id, description, app_id: app_id || DEFAULT_TASKS_APP_ID };
-  const res = await freedcampRequest('POST', '/comments', { body });
+  const res = await api.request('POST', '/comments', { body });
   return (res.data && res.data.comments && res.data.comments[0]) || res.data;
 }
 
@@ -212,6 +248,40 @@ async function listComments({ task_id }) {
 async function listFiles({ task_id }) {
   const task = await getTask({ task_id });
   return task.files || [];
+}
+
+
+// Freedcamp no documenta endpoints públicos para listas ni usuarios; se derivan de las tareas
+// existentes (campos list_id/list_title y assigned_to_id/assigned_to_fullname).
+async function collectTasks(project_id, maxPages = 5) {
+  const all = [];
+  for (let page = 0; page < maxPages; page++) {
+    const { tasks } = await listTasks({ project_id, limit: 200, offset: page * 200 });
+    all.push(...tasks);
+    if (tasks.length < 200) break;
+  }
+  return all;
+}
+
+async function listTaskLists({ project_id }) {
+  if (!project_id) throw new Error('project_id es requerido');
+  const lists = new Map();
+  for (const t of await collectTasks(project_id)) {
+    if (t.list_id && !lists.has(t.list_id)) lists.set(t.list_id, { list_id: t.list_id, title: t.list_title, tasks: 0 });
+    if (t.list_id) lists.get(t.list_id).tasks++;
+  }
+  return [...lists.values()];
+}
+
+async function listAssignees({ project_id }) {
+  if (!project_id) throw new Error('project_id es requerido');
+  const users = new Map();
+  for (const t of await collectTasks(project_id)) {
+    if (!t.assigned_to_id || t.assigned_to_id === '0' || t.assigned_to_id === '-1') continue;
+    if (!users.has(t.assigned_to_id)) users.set(t.assigned_to_id, { user_id: t.assigned_to_id, name: t.assigned_to, tasks: 0 });
+    users.get(t.assigned_to_id).tasks++;
+  }
+  return [...users.values()];
 }
 
 // ---- Tool registry ----------------------------------------------------
@@ -327,12 +397,38 @@ const TOOLS = [
     },
     handler: listFiles,
   },
+  {
+    name: 'freedcamp_list_task_lists',
+    description: 'List the task lists of a project (id, title, number of tasks), to choose list_id when creating a task. Derived from existing tasks, so empty lists do not appear.',
+    inputSchema: {
+      type: 'object',
+      properties: { project_id: { type: 'string', description: 'Project id' } },
+      required: ['project_id'],
+      additionalProperties: false,
+    },
+    handler: listTaskLists,
+  },
+  {
+    name: 'freedcamp_list_assignees',
+    description: 'List the users that have tasks assigned in a project (user_id, name, number of tasks), to choose assigned_to_id. Derived from existing tasks, so users without assigned tasks do not appear.',
+    inputSchema: {
+      type: 'object',
+      properties: { project_id: { type: 'string', description: 'Project id' } },
+      required: ['project_id'],
+      additionalProperties: false,
+    },
+    handler: listAssignees,
+  },
 ];
+
+const READ_ONLY = new Set(['freedcamp_list_projects', 'freedcamp_list_tasks', 'freedcamp_get_task', 'freedcamp_list_comments', 'freedcamp_list_files', 'freedcamp_list_task_lists', 'freedcamp_list_assignees']);
 
 // ---- MCP JSON-RPC over stdio -------------------------------------------
 
+const io = { write: (message) => process.stdout.write(JSON.stringify(message) + '\n') };
+
 function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n');
+  io.write(message);
 }
 
 function sendResult(id, result) {
@@ -343,15 +439,22 @@ function sendError(id, code, message) {
   send({ jsonrpc: '2.0', id, error: { code, message } });
 }
 
+const SUPPORTED_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+
 async function handleRequest(msg) {
   const { id, method, params } = msg;
   try {
     if (method === 'initialize') {
+      const wanted = params && params.protocolVersion;
       sendResult(id, {
-        protocolVersion: '2024-11-05',
+        protocolVersion: SUPPORTED_PROTOCOLS.includes(wanted) ? wanted : SUPPORTED_PROTOCOLS[0],
         capabilities: { tools: {} },
-        serverInfo: { name: 'freedcamp', version: '0.1.0' },
+        serverInfo: { name: 'freedcamp', version: PKG.version },
       });
+      return;
+    }
+    if (method === 'ping') {
+      sendResult(id, {});
       return;
     }
     if (method === 'notifications/initialized') {
@@ -359,7 +462,12 @@ async function handleRequest(msg) {
     }
     if (method === 'tools/list') {
       sendResult(id, {
-        tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+        tools: TOOLS.map(({ name, description, inputSchema }) => ({
+          name,
+          description,
+          inputSchema,
+          annotations: { readOnlyHint: READ_ONLY.has(name) },
+        })),
       });
       return;
     }
@@ -392,15 +500,21 @@ async function handleRequest(msg) {
   }
 }
 
-const rl = readline.createInterface({ input: process.stdin });
-rl.on('line', (line) => {
-  const trimmed = line.trim();
-  if (!trimmed) return;
-  let msg;
-  try {
-    msg = JSON.parse(trimmed);
-  } catch (e) {
-    return; // ignore unparseable lines
-  }
-  handleRequest(msg);
-});
+function main() {
+  const rl = readline.createInterface({ input: process.stdin });
+  rl.on('line', (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let msg;
+    try {
+      msg = JSON.parse(trimmed);
+    } catch (e) {
+      return; // ignore unparseable lines
+    }
+    handleRequest(msg);
+  });
+}
+
+if (require.main === module) main();
+
+module.exports = { io, TOOLS, READ_ONLY, api, handleRequest, listTaskLists, listAssignees, listTasks };
